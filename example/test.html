@@ -1,0 +1,61 @@
+<html>
+<head>
+    <script src="../libs/jquery-1.10.2.min.js"></script>
+    <script src="../libs/underscore.js"></script>
+    <script src="../libs/backbone.js"></script>
+
+    <script>
+        var cls1 = {};
+        _.extend(cls1, Backbone.Events, {
+            fun1:function(){
+                console.log('cls1 fun1');
+            },
+            fun2:function(){
+                console.log('cls1 fun2');
+            }
+        });
+
+        var cls2 = {};
+        _.extend(cls2, Backbone.Events, {
+            fun1:function(){
+                console.log('cls2 fun1');
+            },
+            fun2:function(){
+                console.log('cls2 fun2');
+            }
+        });
+
+        cls1.on('aaa',function(){
+            console.log('lalal');
+        });
+
+        cls1.trigger('aaa');
+
+        var testRouter = Backbone.Router.extend({
+
+            routes: {
+                "help":                 "help",    // #help
+                "search/:query":        "search",  // #search/kiwis
+                "search/:query/p:page": "search"   // #search/kiwis/p7
+            },
+
+            help: function() {
+                console.log('help');
+            },
+
+            search: function(query, page) {
+                console.log('search', query, page);
+            }
+
+        });
+
+        var r = new testRouter();
+
+        Backbone.history.start({pushState:false});
+
+    </script>
+</head>
+<body>
+
+</body>
+</html>
