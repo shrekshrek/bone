@@ -1,12 +1,11 @@
 <html>
 <head>
     <script src="../libs/jquery-1.10.2.min.js"></script>
-    <script src="../libs/underscore.js"></script>
-    <script src="../libs/backbone.js"></script>
+    <script src="../bone.js"></script>
 
     <script>
         var cls1 = {};
-        _.extend(cls1, Backbone.Events, {
+        Bone.extend(cls1, Bone.Events, {
             fun1:function(){
                 console.log('cls1 fun1');
             },
@@ -16,7 +15,7 @@
         });
 
         var cls2 = {};
-        _.extend(cls2, Backbone.Events, {
+        Bone.extend(cls2, Bone.Events, {
             fun1:function(){
                 console.log('cls2 fun1');
             },
@@ -31,7 +30,7 @@
 
         cls1.trigger('aaa');
 
-        var testRouter = Backbone.Router.extend({
+        var Workspace = Bone.Router.extend({
 
             routes: {
                 "help":                 "help",    // #help
@@ -49,9 +48,8 @@
 
         });
 
-        var r = new testRouter();
-
-        Backbone.history.start({pushState:false});
+        var r = new Workspace();
+        Bone.history.start();
 
     </script>
 </head>

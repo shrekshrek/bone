@@ -1,4 +1,10 @@
-//     bone.js 0.1.0
+/*
+ * VERSION: 0.1.0
+ * DATE: 2015-03-31
+ * GIT:https://github.com/shrekshrek/bone
+ *
+ * @author: Shrek.wang, shrekshrek@gmail.com
+ **/
 
 (function(root, factory) {
     root.Bone = factory(root, {}, (root.jQuery || root.Zepto || root.$));
@@ -26,7 +32,7 @@
         return Function.prototype.bind.apply(func, slice.call(arguments, 1));
     };
 
-    Bone.extend = function(obj){
+    var ext = function(obj){
         var len = arguments.length;
         if (len < 2 || obj == null) return obj;
         for (var i = 1; i < len; i++) {
@@ -36,7 +42,35 @@
             }
         }
         return obj;
-    }
+    };
+
+    Bone.extend = ext;
+
+    var extend = function(protoProps, staticProps) {
+        var parent = this;
+        var child;
+
+        if (protoProps && Object.prototype.hasOwnProperty.call(protoProps, 'constructor')) {
+            child = protoProps.constructor;
+        } else {
+            child = function(){ return parent.apply(this, arguments); };
+        }
+
+        ext(child, parent, staticProps);
+
+        var Surrogate = function(){
+            this.constructor = child;
+        };
+        Surrogate.prototype = parent.prototype;
+        child.prototype = new Surrogate;
+
+        if (protoProps) ext(child.prototype, protoProps);
+
+        child.__super__ = parent.prototype;
+
+        return child;
+    };
+
 
     // Bone.Events
     // ---------------
@@ -114,7 +148,7 @@
         }
     };
 
-    Bone.extend(Bone, Events);
+    ext(Bone, Events);
 
 
     // Bone.View
@@ -131,7 +165,7 @@
         this.initialize.apply(this, arguments);
     };
 
-    Bone.extend(View.prototype, Events, {
+    ext(View.prototype, Events, {
 
         tagName: 'div',
 
@@ -187,7 +221,7 @@
     var splatParam    = /\*\w+/g;
     var escapeRegExp  = /[\-{}\[\]+?.,\\\^$|#\s]/g;
 
-    Bone.extend(Router.prototype, Events, {
+    ext(Router.prototype, Events, {
 
         initialize: function(){},
 
@@ -267,7 +301,7 @@
 
     History.started = false;
 
-    Bone.extend(History.prototype, Events, {
+    ext(History.prototype, Events, {
         atRoot: function() {
             return this.location.pathname.replace(/[^\/]$/, '$&/') === this.root;
         },
@@ -288,7 +322,7 @@
             if (History.started) throw new Error("Bone.history has already been started");
             History.started = true;
 
-            this.options          = Bone.extend({root: '/'}, this.options, options);
+            this.options          = ext({root: '/'}, this.options, options);
             this.root             = this.options.root;
             var fragment          = this.getFragment();
 
@@ -358,31 +392,6 @@
 
     // extend
     // ----------------
-
-    var extend = function(protoProps, staticProps) {
-        var parent = this;
-        var child;
-
-        if (protoProps && Object.prototype.hasOwnProperty.call(protoProps, 'constructor')) {
-            child = protoProps.constructor;
-        } else {
-            child = function(){ return parent.apply(this, arguments); };
-        }
-
-        Bone.extend(child, parent, staticProps);
-
-        var Surrogate = function(){
-            this.constructor = child;
-        };
-        Surrogate.prototype = parent.prototype;
-        child.prototype = new Surrogate;
-
-        if (protoProps) Bone.extend(child.prototype, protoProps);
-
-        child.__super__ = parent.prototype;
-
-        return child;
-    };
 
     Router.extend = View.extend = History.extend = extend;
 
