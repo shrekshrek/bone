@@ -7,7 +7,13 @@
  **/
 
 (function(root, factory) {
-    root.Bone = factory(root, {}, (root.jQuery || root.Zepto || root.$));
+    if (typeof define === 'function' && define.amd) {
+        define(['jquery', 'exports'], function($, exports) {
+            root.Bone = factory(root, exports, $);
+        });
+    } else {
+        root.Bone = factory(root, {}, (root.jQuery || root.Zepto || root.$));
+    }
 
 }(this, function(root, Bone, $) {
 
@@ -31,6 +37,8 @@
     var bind = function(func, context) {
         return Function.prototype.bind.apply(func, slice.call(arguments, 1));
     };
+
+    Bone.bind = bind;
 
     var ext = function(obj){
         var len = arguments.length;
@@ -86,6 +94,16 @@
             return this;
         },
 
+        once: function(name, callback, context) {
+            if (!callback) return this;
+            var self = this;
+            var once = function() {
+                self.off(name, once, context);
+                callback.apply(this, arguments);
+            };
+            return this.on(name, once, context);
+        },
+
         off: function(name, callback, context) {
             if (!this._events) return this;
             if (!name && !callback && !context) {
@@ -122,6 +140,14 @@
             return this;
         },
 
+        listenToOnce: function(obj, name, callback) {
+            var listeningTo = this._listeningTo || (this._listeningTo = {});
+            var id = obj._listenId || (obj._listenId = ++_uniqueListenId);
+            listeningTo[id] = obj;
+            obj.once(name, callback, this);
+            return this;
+        },
+
         stopListening: function(obj, name, callback) {
             var listeningTo = this._listeningTo;
             if (!listeningTo) return this;
@@ -143,7 +169,7 @@
     };
 
     var triggerEvents = function(events, args) {
-        for(var i in events){
+        for (var i = events.length-1; i >= 0; i--) {
             events[i].callback.apply(events[i].ctx, args);
         }
     };
@@ -154,15 +180,21 @@
     // Bone.View
     // ---------------
 
+    var _uniqueViewId = 0;
+
+    var delegateEventSplitter = /^(\S+)\s*(.*)$/;
+
     var viewOptions = ['el', 'id', 'attributes', 'className', 'tagName'];
 
     var View = Bone.View = function(options) {
+        this.cid = ++_uniqueViewId;
         options || (options = {});
         for(var i in viewOptions){
             if(options[viewOptions[i]]) this[viewOptions[i]] = options[viewOptions[i]];
         }
         this._ensureElement();
         this.initialize.apply(this, arguments);
+        this.delegateEvents();
     };
 
     ext(View.prototype, Events, {
@@ -191,11 +223,37 @@
             return this;
         },
 
+        delegateEvents: function(events) {
+            if (!(events || (events = this.events))) return this;
+            this.undelegateEvents();
+            for (var key in events) {
+                var method = events[key];
+                if (typeof(method) !== 'function') method = this[events[key]];
+                if (!method) continue;
+
+                var match = key.match(delegateEventSplitter);
+                var eventName = match[1], selector = match[2];
+                method = bind(method, this);
+                eventName += '.delegateEvents' + this.cid;
+                if (selector === '') {
+                    this.$el.on(eventName, method);
+                } else {
+                    this.$el.on(eventName, selector, method);
+                }
+            }
+            return this;
+        },
+
+        undelegateEvents: function() {
+            this.$el.off('.delegateEvents' + this.cid);
+            return this;
+        },
+
         _ensureElement: function() {
             if (this.el) {
                 this.setElement(this.el);
             } else {
-                var attrs = this.attributes;
+                var attrs = ext({}, this.attributes);
                 if (this.id) attrs.id = this.id;
                 if (this.className) attrs.class = this.className;
                 var $el = Bone.$('<' + this.tagName + '>').attr(attrs);
