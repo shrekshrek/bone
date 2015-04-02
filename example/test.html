@@ -1,7 +1,7 @@
 <html>
 <head>
     <script src="../libs/zepto.min.js"></script>
-    <script src="../bone.min.js"></script>
+    <script src="../bone.js"></script>
 
     <script>
         var cls1 = {};
@@ -24,10 +24,15 @@
             }
         });
 
-        cls1.on('aaa',function(){
-            console.log('lalal');
+        cls1.once('aaa',function(){
+            console.log('cls1 lalal');
         });
 
+        cls2.listenTo(cls1,'aaa',function(){
+            console.log('cls2 lalal');
+        });
+
+        cls1.trigger('aaa');
         cls1.trigger('aaa');
 
         var Workspace = Bone.Router.extend({
@@ -49,6 +54,26 @@
         });
 
         var r = new Workspace();
+
+        var Page = Bone.View.extend({
+            fun1:function(){
+                this.trigger('ddd');
+            }
+        });
+        var p1 = new Page();
+        var p2 = new Page();
+
+        p1.listenToOnce(p2,'ddd',fun1);
+        function fun1(){
+            console.log('fun111111');
+        }
+        p1.listenTo(p2,'ddd',fun2);
+        function fun2(){
+            console.log('fun2222222');
+        }
+
+        p2.trigger('ddd',{data:'data'});
+
         Bone.history.start();
 
     </script>
