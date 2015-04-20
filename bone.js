@@ -87,7 +87,7 @@
 
     var Events = Bone.Events = {
         on: function(name, callback, context) {
-            if (!callback) return this;
+            if (!name || !callback) return this;
             this._events || (this._events = {});
             var events = this._events[name] || (this._events[name] = []);
             events.push({callback: callback, context: context, ctx: context || this});
@@ -95,33 +95,50 @@
         },
 
         once: function(name, callback, context) {
-            if (!callback) return this;
+            if (!name || !callback) return this;
             var self = this;
             var once = function() {
                 self.off(name, once, context);
                 callback.apply(this, arguments);
             };
+            once._callback = callback;
             return this.on(name, once, context);
         },
 
         off: function(name, callback, context) {
             if (!this._events) return this;
+
+            var retain, ev, events, names;
             if (!name && !callback && !context) {
                 this._events = {};
                 return this;
             }
 
-            var events = this._events[name];
-            if(!events) return this;
-            for (var i = events.length-1; i >= 0; i--) {
-                var ev = events[i];
-                if (!callback || (callback === ev.callback && (!context || context === ev.context))) {
-                    events.splice(i, 1);
+            var _self = this;
+            names = name?[name]:function(){
+                var _n = [];
+                for(var k in _self._events){
+                    _n.push(k);
+                }
+                return _n;
+            }();
+
+            for (var i = names.length-1; i >= 0; i--) {
+                name = names[i];
+                if (events = this._events[name]) {
+                    this._events[name] = retain = [];
+                    if (callback || context) {
+                        for (var j = events.length-1; j >= 0; j--) {
+                            ev = events[j];
+                            if ((callback && callback !== ev.callback && callback !== ev.callback._callback) ||
+                                (context && context !== ev.context)) {
+                                retain.push(ev);
+                            }
+                        }
+                    }
+                    if (!retain.length) delete this._events[name];
                 }
             }
-            if (!events.length) delete this._events[name];
-
-            return this;
         },
 
         trigger: function(name) {
@@ -152,6 +169,7 @@
             var listeningTo = this._listeningTo;
             if (!listeningTo) return this;
             var remove = !name && !callback;
+            if (!callback && typeof name === 'object') callback = this;
             if (obj) (listeningTo = {})[obj._listenId] = obj;
             for (var id in listeningTo) {
                 obj = listeningTo[id];
