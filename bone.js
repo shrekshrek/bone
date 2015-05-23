@@ -203,7 +203,7 @@
     };
 
     ext(Class.prototype, Events, {
-        initialize: function(){},
+        initialize: function(){}
     });
 
 
