@@ -195,6 +195,18 @@
     ext(Bone, Events);
 
 
+    // Bone.Class
+    // ---------------
+
+    var Class = Bone.Class = function(options) {
+        this.initialize.apply(this, arguments);
+    };
+
+    ext(Class.prototype, Events, {
+        initialize: function(){},
+    });
+
+
     // Bone.View
     // ---------------
 
@@ -469,7 +481,7 @@
     // extend
     // ----------------
 
-    Router.extend = View.extend = History.extend = extend;
+    Router.extend = History.extend = View.extend = Class.extend = extend;
 
 
 
