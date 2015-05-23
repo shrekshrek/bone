@@ -1,4 +1,4 @@
-/*
+/*!
  * VERSION: 0.1.0
  * DATE: 2015-03-31
  * GIT:https://github.com/shrekshrek/bone
