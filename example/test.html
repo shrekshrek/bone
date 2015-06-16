@@ -3,8 +3,7 @@
     <script src="../bone.js"></script>
 
     <script>
-        var cls1 = {};
-        Bone.extend(cls1, Bone.Events, {
+        var cls1 = Bone.extend({}, Bone.Events, {
             fun1:function(){
                 console.log('cls1 fun1');
             },
@@ -13,8 +12,7 @@
             }
         });
 
-        var cls2 = {};
-        Bone.extend(cls2, Bone.Events, {
+        var cls2 = Bone.extend({}, Bone.Events, {
             fun1:function(){
                 console.log('cls2 fun1');
             },

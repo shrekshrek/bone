@@ -15,11 +15,10 @@ Bone.History
 
 范例代码：
 1.为object添加事件功能
-var obj = {};
-Bone.extend(obj, Bone.Events, {});
+var obj = Bone.extend({}, Bone.Events, {...});
 
 2.创建类
-var Page = Bone.Class.extend({});
+var Page = Bone.Class.extend({...});
 
 
 
