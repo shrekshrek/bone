@@ -1,38 +1,46 @@
 /*!
- * VERSION: 0.1.0
+ * VERSION: 0.2.0
  * DATE: 2015-03-31
  * GIT:https://github.com/shrekshrek/bone
  *
  * @author: Shrek.wang, shrekshrek@gmail.com
  **/
 
-(function(root, factory) {
+
+(function(factory) {
+
+    var root = (typeof self == 'object' && self.self == self && self) ||
+        (typeof global == 'object' && global.global == global && global);
+
     if (typeof define === 'function' && define.amd) {
-        define(['jquery', 'exports'], function($, exports) {
-            root.Bone = factory(root, exports, $);
+        define(['exports'], function(exports) {
+            root.Bone = factory(root, exports);
         });
+    } else if (typeof exports !== 'undefined') {
+        factory(root, exports);
     } else {
-        root.Bone = factory(root, {}, (root.jQuery || root.Zepto || root.$));
+        root.Bone = factory(root, {});
     }
 
-}(this, function(root, Bone, $) {
+}(function(root, Bone) {
 
     var previousBone = root.Bone;
 
-    Bone.VERSION = '0.1.0';
+    var slice = [].slice;
 
-    Bone.$ = $;
+    Bone.VERSION = '0.2.0';
 
     Bone.noConflict = function() {
         root.Bone = previousBone;
         return this;
     };
 
-
+    // other function
     // ---------------
 
-    var array = [];
-    var slice = array.slice;
+    var isFunction = function(obj) {
+        return typeof obj == 'function' || false;
+    };
 
     var bind = function(func, context) {
         return Function.prototype.bind.apply(func, slice.call(arguments, 1));
@@ -40,159 +48,255 @@
 
     Bone.bind = bind;
 
-    var ext = function(obj){
-        var len = arguments.length;
-        if (len < 2 || obj == null) return obj;
-        for (var i = 1; i < len; i++) {
-            var source = arguments[i];
-            for (var j in source) {
-                obj[j] = source[j];
+    var extend = function(obj){
+        var length = arguments.length;
+        if (length < 2 || obj == null) return obj;
+        for (var index = 1; index < length; index++) {
+            var source = arguments[index],
+                ks = keys(source),
+                l = ks.length;
+            for (var i = 0; i < l; i++) {
+                var key = ks[i];
+                obj[key] = source[key];
             }
         }
         return obj;
     };
 
-    Bone.extend = ext;
+    Bone.extend = extend;
 
-    var extend = function(protoProps, staticProps) {
-        var parent = this;
-        var child;
-
-        if (protoProps && Object.prototype.hasOwnProperty.call(protoProps, 'constructor')) {
-            child = protoProps.constructor;
-        } else {
-            child = function(){ return parent.apply(this, arguments); };
+    var keys = function(obj){
+        var keys = [];
+        for(var key in obj){
+            keys.push(key);
         }
+        return keys;
+    };
 
-        ext(child, parent, staticProps);
+    var size = function(obj) {
+        if (obj == null) return 0;
+        return (obj.length !== undefined) ? obj.length : keys(obj).length;
+    };
 
-        var Surrogate = function(){
-            this.constructor = child;
-        };
-        Surrogate.prototype = parent.prototype;
-        child.prototype = new Surrogate;
+    var isEmpty = function(obj) {
+        if (obj == null) return true;
+        if (obj.length !== undefined) return obj.length === 0;
+        return keys(obj).length === 0;
+    };
 
-        if (protoProps) ext(child.prototype, protoProps);
-
-        child.__super__ = parent.prototype;
-
-        return child;
+    var idCounter = 0;
+    var uniqueId = function(prefix) {
+        var id = ++idCounter + '';
+        return prefix ? prefix + id : id;
     };
 
 
     // Bone.Events
     // ---------------
 
-    var _uniqueListenId = 0;
+    //     var object = {};
+    //     Bone.extend(object, Bone.Events);
+    //     object.on('expand', function(){ alert('expanded'); });
+    //     object.trigger('expand');
 
-    var Events = Bone.Events = {
-        on: function(name, callback, context) {
-            if (!name || !callback) return this;
-            this._events || (this._events = {});
-            var events = this._events[name] || (this._events[name] = []);
-            events.push({callback: callback, context: context, ctx: context || this});
-            return this;
-        },
+    var Events = Bone.Events = {};
 
-        once: function(name, callback, context) {
-            if (!name || !callback) return this;
-            var self = this;
-            var once = function() {
-                self.off(name, once, context);
+    var eventSplitter = /\s+/;
+
+    var eventsApi = function(iteratee, memo, name, callback, opts) {
+        var i = 0, names;
+        if (name && typeof name === 'object') {
+            if (callback !== void 0 && 'context' in opts && opts.context === void 0) opts.context = callback;
+            for (names = keys(name); i < names.length ; i++) {
+                memo = iteratee(memo, names[i], name[names[i]], opts);
+            }
+        } else if (name && eventSplitter.test(name)) {
+            for (names = name.split(eventSplitter); i < names.length; i++) {
+                memo = iteratee(memo, names[i], callback, opts);
+            }
+        } else {
+            memo = iteratee(memo, name, callback, opts);
+        }
+        return memo;
+    };
+
+    Events.on = function(name, callback, context) {
+        return internalOn(this, name, callback, context);
+    };
+
+    var internalOn = function(obj, name, callback, context, listening) {
+        obj._events = eventsApi(onApi, obj._events || {}, name, callback, {
+            context: context,
+            ctx: obj,
+            listening: listening
+        });
+
+        if (listening) {
+            var listeners = obj._listeners || (obj._listeners = {});
+            listeners[listening.id] = listening;
+        }
+
+        return obj;
+    };
+
+    Events.listenTo =  function(obj, name, callback) {
+        if (!obj) return this;
+        var id = obj._listenId || (obj._listenId = uniqueId('l'));
+        var listeningTo = this._listeningTo || (this._listeningTo = {});
+        var listening = listeningTo[id];
+
+        if (!listening) {
+            var thisId = this._listenId || (this._listenId = uniqueId('l'));
+            listening = listeningTo[id] = {obj: obj, objId: id, id: thisId, listeningTo: listeningTo, count: 0};
+        }
+
+        internalOn(obj, name, callback, this, listening);
+        return this;
+    };
+
+    var onApi = function(events, name, callback, options) {
+        if (callback) {
+            var handlers = events[name] || (events[name] = []);
+            var context = options.context, ctx = options.ctx, listening = options.listening;
+            if (listening) listening.count++;
+
+            handlers.push({ callback: callback, context: context, ctx: context || ctx, listening: listening });
+        }
+        return events;
+    };
+
+    Events.off =  function(name, callback, context) {
+        if (!this._events) return this;
+        this._events = eventsApi(offApi, this._events, name, callback, {
+            context: context,
+            listeners: this._listeners
+        });
+        return this;
+    };
+
+    Events.stopListening =  function(obj, name, callback) {
+        var listeningTo = this._listeningTo;
+        if (!listeningTo) return this;
+
+        var ids = obj ? [obj._listenId] : keys(listeningTo);
+
+        for (var i = 0; i < ids.length; i++) {
+            var listening = listeningTo[ids[i]];
+
+            if (!listening) break;
+
+            listening.obj.off(name, callback, this);
+        }
+        if (isEmpty(listeningTo)) this._listeningTo = void 0;
+
+        return this;
+    };
+
+    var offApi = function(events, name, callback, options) {
+        if (!events) return;
+
+        var i = 0, listening;
+        var context = options.context, listeners = options.listeners;
+
+        if (!name && !callback && !context) {
+            var ids = keys(listeners);
+            for (; i < ids.length; i++) {
+                listening = listeners[ids[i]];
+                delete listeners[listening.id];
+                delete listening.listeningTo[listening.objId];
+            }
+            return;
+        }
+
+        var names = name ? [name] : keys(events);
+        for (; i < names.length; i++) {
+            name = names[i];
+            var handlers = events[name];
+
+            if (!handlers) break;
+
+            var remaining = [];
+            for (var j = 0; j < handlers.length; j++) {
+                var handler = handlers[j];
+                if (
+                    callback && callback !== handler.callback &&
+                    callback !== handler.callback._callback ||
+                    context && context !== handler.context
+                ) {
+                    remaining.push(handler);
+                } else {
+                    listening = handler.listening;
+                    if (listening && --listening.count === 0) {
+                        delete listeners[listening.id];
+                        delete listening.listeningTo[listening.objId];
+                    }
+                }
+            }
+
+            if (remaining.length) {
+                events[name] = remaining;
+            } else {
+                delete events[name];
+            }
+        }
+        if (size(events)) return events;
+    };
+
+    Events.once =  function(name, callback, context) {
+        var events = eventsApi(onceMap, {}, name, callback, bind(this.off, this));
+        return this.on(events, void 0, context);
+    };
+
+    Events.listenToOnce =  function(obj, name, callback) {
+        var events = eventsApi(onceMap, {}, name, callback, bind(this.stopListening, this, obj));
+        return this.listenTo(obj, events);
+    };
+
+    var onceMap = function(map, name, callback, offer) {
+        if (callback) {
+            var once = map[name] = function() {
+                offer(name, once);
                 callback.apply(this, arguments);
             };
             once._callback = callback;
-            return this.on(name, once, context);
-        },
-
-        off: function(name, callback, context) {
-            if (!this._events) return this;
-
-            var retain, ev, events, names;
-            if (!name && !callback && !context) {
-                this._events = {};
-                return this;
-            }
-
-            var _self = this;
-            names = name?[name]:function(){
-                var _n = [];
-                for(var k in _self._events){
-                    _n.push(k);
-                }
-                return _n;
-            }();
-
-            for (var i = names.length-1; i >= 0; i--) {
-                name = names[i];
-                if (events = this._events[name]) {
-                    this._events[name] = retain = [];
-                    if (callback || context) {
-                        for (var j = events.length-1; j >= 0; j--) {
-                            ev = events[j];
-                            if ((callback && callback !== ev.callback && callback !== ev.callback._callback) ||
-                                (context && context !== ev.context)) {
-                                retain.push(ev);
-                            }
-                        }
-                    }
-                    if (!retain.length) delete this._events[name];
-                }
-            }
-        },
-
-        trigger: function(name) {
-            if (!this._events) return this;
-            var args = slice.call(arguments, 1);
-            var events = this._events[name];
-            if (events) triggerEvents(events, args);
-            return this;
-        },
-
-        listenTo: function(obj, name, callback) {
-            var listeningTo = this._listeningTo || (this._listeningTo = {});
-            var id = obj._listenId || (obj._listenId = ++_uniqueListenId);
-            listeningTo[id] = obj;
-            obj.on(name, callback, this);
-            return this;
-        },
-
-        listenToOnce: function(obj, name, callback) {
-            var listeningTo = this._listeningTo || (this._listeningTo = {});
-            var id = obj._listenId || (obj._listenId = ++_uniqueListenId);
-            listeningTo[id] = obj;
-            obj.once(name, callback, this);
-            return this;
-        },
-
-        stopListening: function(obj, name, callback) {
-            var listeningTo = this._listeningTo;
-            if (!listeningTo) return this;
-            var remove = !name && !callback;
-            if (!callback && typeof name === 'object') callback = this;
-            if (obj) (listeningTo = {})[obj._listenId] = obj;
-            for (var id in listeningTo) {
-                obj = listeningTo[id];
-                obj.off(name, callback, this);
-
-                var _objEventsCount = 0;
-                for(var j in obj._events){
-                    _objEventsCount++;
-                }
-                if (remove || !_objEventsCount) delete this._listeningTo[id];
-            }
-            return this;
         }
+        return map;
+    };
 
+    Events.trigger =  function(name) {
+        if (!this._events) return this;
+
+        var length = Math.max(0, arguments.length - 1);
+        var args = Array(length);
+        for (var i = 0; i < length; i++) args[i] = arguments[i + 1];
+
+        eventsApi(triggerApi, this._events, name, void 0, args);
+        return this;
+    };
+
+    var triggerApi = function(objEvents, name, cb, args) {
+        if (objEvents) {
+            var events = objEvents[name];
+            var allEvents = objEvents.all;
+            if (events && allEvents) allEvents = allEvents.slice();
+            if (events) triggerEvents(events, args);
+            if (allEvents) triggerEvents(allEvents, [name].concat(args));
+        }
+        return objEvents;
     };
 
     var triggerEvents = function(events, args) {
-        for (var i = events.length-1; i >= 0; i--) {
-            events[i].callback.apply(events[i].ctx, args);
+        var ev, i = -1, l = events.length, a1 = args[0], a2 = args[1], a3 = args[2];
+        switch (args.length) {
+            case 0: while (++i < l) (ev = events[i]).callback.call(ev.ctx); return;
+            case 1: while (++i < l) (ev = events[i]).callback.call(ev.ctx, a1); return;
+            case 2: while (++i < l) (ev = events[i]).callback.call(ev.ctx, a1, a2); return;
+            case 3: while (++i < l) (ev = events[i]).callback.call(ev.ctx, a1, a2, a3); return;
+            default: while (++i < l) (ev = events[i]).callback.apply(ev.ctx, args); return;
         }
     };
 
-    ext(Bone, Events);
+    extend(Bone, Events);
 
 
     // Bone.Class
@@ -202,95 +306,8 @@
         this.initialize.apply(this, arguments);
     };
 
-    ext(Class.prototype, Events, {
+    extend(Class.prototype, Events, {
         initialize: function(){}
-    });
-
-
-    // Bone.View
-    // ---------------
-
-    var _uniqueViewId = 0;
-
-    var delegateEventSplitter = /^(\S+)\s*(.*)$/;
-
-    var viewOptions = ['el', 'id', 'attributes', 'className', 'tagName'];
-
-    var View = Bone.View = function(options) {
-        this.cid = ++_uniqueViewId;
-        options || (options = {});
-        for(var i in viewOptions){
-            if(options[viewOptions[i]]) this[viewOptions[i]] = options[viewOptions[i]];
-        }
-        this._ensureElement();
-        this.initialize.apply(this, arguments);
-        this.delegateEvents();
-    };
-
-    ext(View.prototype, Events, {
-
-        tagName: 'div',
-
-        $: function(selector) {
-            return this.$el.find(selector);
-        },
-
-        initialize: function(){},
-
-        render: function() {
-            return this;
-        },
-
-        remove: function() {
-            this.$el.remove();
-            this.stopListening();
-            return this;
-        },
-
-        setElement: function(element) {
-            this.$el = element instanceof Bone.$ ? element : Bone.$(element);
-            this.el = this.$el[0];
-            return this;
-        },
-
-        delegateEvents: function(events) {
-            if (!(events || (events = this.events))) return this;
-            this.undelegateEvents();
-            for (var key in events) {
-                var method = events[key];
-                if (typeof(method) !== 'function') method = this[events[key]];
-                if (!method) continue;
-
-                var match = key.match(delegateEventSplitter);
-                var eventName = match[1], selector = match[2];
-                method = bind(method, this);
-                eventName += '.delegateEvents' + this.cid;
-                if (selector === '') {
-                    this.$el.on(eventName, method);
-                } else {
-                    this.$el.on(eventName, selector, method);
-                }
-            }
-            return this;
-        },
-
-        undelegateEvents: function() {
-            this.$el.off('.delegateEvents' + this.cid);
-            return this;
-        },
-
-        _ensureElement: function() {
-            if (this.el) {
-                this.setElement(this.el);
-            } else {
-                var attrs = ext({}, this.attributes);
-                if (this.id) attrs.id = this.id;
-                if (this.className) attrs.class = this.className;
-                var $el = Bone.$('<' + this.tagName + '>').attr(attrs);
-                this.setElement($el);
-            }
-        }
-
     });
 
 
@@ -309,26 +326,30 @@
     var splatParam    = /\*\w+/g;
     var escapeRegExp  = /[\-{}\[\]+?.,\\\^$|#\s]/g;
 
-    ext(Router.prototype, Events, {
+    extend(Router.prototype, Events, {
 
         initialize: function(){},
 
-        route: function(route, callback) {
+        route: function(route, name, callback) {
             route = this._routeToRegExp(route);
-            if (typeof(callback) === 'string') {
-                callback = this[callback];
+            if (isFunction(name)) {
+                callback = name;
+                name = '';
             }
+            if (!callback) callback = this[name];
             var router = this;
             Bone.history.route(route, function(fragment) {
                 var args = router._extractParameters(route, fragment);
-                router.execute(callback, args);
-                router.trigger('route', args);
-                Bone.history.trigger('route', router, args);
+                if (router.execute(callback, args, name) !== false) {
+                    router.trigger.apply(router, ['route:' + name].concat(args));
+                    router.trigger('route', name, args);
+                    Bone.history.trigger('route', router, name, args);
+                }
             });
             return this;
         },
 
-        execute: function(callback, args) {
+        execute: function(callback, args, name) {
             if (callback) callback.apply(this, args);
         },
 
@@ -339,7 +360,8 @@
 
         _bindRoutes: function() {
             if (!this.routes) return;
-            for(var route in this.routes){
+            var route, routes = keys(this.routes);
+            while ((route = routes.pop()) != null) {
                 this.route(route, this.routes[route]);
             }
         },
@@ -389,9 +411,25 @@
 
     History.started = false;
 
-    ext(History.prototype, Events, {
+    extend(History.prototype, Events, {
         atRoot: function() {
-            return this.location.pathname.replace(/[^\/]$/, '$&/') === this.root;
+            var path = this.location.pathname.replace(/[^\/]$/, '$&/');
+            return path === this.root && !this.getSearch();
+        },
+
+        matchRoot: function() {
+            var path = this.decodeFragment(this.location.pathname);
+            var root = path.slice(0, this.root.length - 1) + '/';
+            return root === this.root;
+        },
+
+        decodeFragment: function(fragment) {
+            return decodeURI(fragment.replace(/%25/g, '%2525'));
+        },
+
+        getSearch: function() {
+            var match = this.location.href.replace(/#.*/, '').match(/\?.+/);
+            return match ? match[0] : '';
         },
 
         getHash: function(window) {
@@ -399,9 +437,20 @@
             return match ? match[1] : '';
         },
 
+        getPath: function() {
+            var path = this.decodeFragment(
+                this.location.pathname + this.getSearch()
+            ).slice(this.root.length - 1);
+            return path.charAt(0) === '/' ? path.slice(1) : path;
+        },
+
         getFragment: function(fragment) {
             if (fragment == null) {
-                fragment = this.getHash();
+                if (this._usePushState || !this._wantsHashChange) {
+                    fragment = this.getPath();
+                } else {
+                    fragment = this.getHash();
+                }
             }
             return fragment.replace(routeStripper, '');
         },
@@ -410,21 +459,53 @@
             if (History.started) throw new Error("Bone.history has already been started");
             History.started = true;
 
-            this.options          = ext({root: '/'}, this.options, options);
+            this.options          = extend({root: '/'}, this.options, options);
             this.root             = this.options.root;
-            var fragment          = this.getFragment();
+            this._wantsHashChange = this.options.hashChange !== false;
+            this._hasHashChange   = 'onhashchange' in window;
+            this._useHashChange   = this._wantsHashChange && this._hasHashChange;
+            this._wantsPushState  = !!this.options.pushState;
+            this._hasPushState    = !!(this.history && this.history.pushState);
+            this._usePushState    = this._wantsPushState && this._hasPushState;
+            this.fragment         = this.getFragment();
 
             this.root = ('/' + this.root + '/').replace(rootStripper, '/');
 
-            Bone.$(window).on('hashchange', this.checkUrl);
+            if (this._wantsHashChange && this._wantsPushState) {
+                if (!this._hasPushState && !this.atRoot()) {
+                    var root = this.root.slice(0, -1) || '/';
+                    this.location.replace(root + '#' + this.getPath());
+                    return true;
+                } else if (this._hasPushState && this.atRoot()) {
+                    this.navigate(this.getHash(), {replace: true});
+                }
+            }
 
-            this.fragment = fragment;
+            var addEventListener = window.addEventListener || function (eventName, listener) {
+                    return attachEvent('on' + eventName, listener);
+                };
+
+            if (this._usePushState) {
+                addEventListener('popstate', this.checkUrl, false);
+            } else if (this._useHashChange) {
+                addEventListener('hashchange', this.checkUrl, false);
+            }
 
             if (!this.options.silent) return this.loadUrl();
         },
 
         stop: function() {
-            Bone.$(window).off('hashchange', this.checkUrl);
+            var removeEventListener = window.removeEventListener || function (eventName, listener) {
+                    return detachEvent('on' + eventName, listener);
+                };
+
+            if (this._usePushState) {
+                removeEventListener('popstate', this.checkUrl, false);
+            } else if (this._useHashChange) {
+                removeEventListener('hashchange', this.checkUrl, false);
+            }
+
+            if (this._checkUrlInterval) clearInterval(this._checkUrlInterval);
             History.started = false;
         },
 
@@ -432,15 +513,15 @@
             this.handlers.unshift({route: route, callback: callback});
         },
 
-        checkUrl: function(e) {
+        checkUrl: function(e) {console.log(this);
             var current = this.getFragment();
             if (current === this.fragment) return false;
             this.loadUrl();
         },
 
         loadUrl: function(fragment) {
+            if (!this.matchRoot()) return false;
             fragment = this.fragment = this.getFragment(fragment);
-
             for(var i in this.handlers){
                 var handler = this.handlers[i];
                 if (handler.route.test(fragment)) {
@@ -456,11 +537,25 @@
 
             fragment = fragment.replace(pathStripper, '');
 
+            var root = this.root;
+            if (fragment === '' || fragment.charAt(0) === '?') {
+                root = root.slice(0, -1) || '/';
+            }
+            var url = root + fragment;
+
+            fragment = this.decodeFragment(fragment.replace(pathStripper, ''));
+
             if (this.fragment === fragment) return;
             this.fragment = fragment;
 
-            this._updateHash(this.location, fragment, options.replace);
+            if (this._usePushState) {
+                this.history[options.replace ? 'replaceState' : 'pushState']({}, document.title, url);
 
+            } else if (this._wantsHashChange) {
+                this._updateHash(this.location, fragment, options.replace);
+            } else {
+                return this.location.assign(url);
+            }
             if (options.trigger) return this.loadUrl(fragment);
         },
 
@@ -481,7 +576,32 @@
     // extend
     // ----------------
 
-    Router.extend = History.extend = View.extend = Class.extend = extend;
+    var extend2 = function(protoProps, staticProps) {
+        var parent = this;
+        var child;
+
+        if (protoProps && Object.prototype.hasOwnProperty.call(protoProps, 'constructor')) {
+            child = protoProps.constructor;
+        } else {
+            child = function(){ return parent.apply(this, arguments); };
+        }
+
+        extend(child, parent, staticProps);
+
+        var Surrogate = function(){
+            this.constructor = child;
+        };
+        Surrogate.prototype = parent.prototype;
+        child.prototype = new Surrogate;
+
+        if (protoProps) extend(child.prototype, protoProps);
+
+        child.__super__ = parent.prototype;
+
+        return child;
+    };
+
+    Router.extend = History.extend = Class.extend = extend2;
 
 
 
