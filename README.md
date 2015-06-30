@@ -1,13 +1,15 @@
 bone
 ============
 
-没什么技术含量，只是backbone的简化版，保留了events，history，router。
+没什么技术含量，只是backbone的简化版，保留了view, events, history, router。
 个人使用下来这几个功能最有用。
-不依赖jQuery和underscore，只有9k，小巧实用。
+不依赖jQuery和underscore，只有10k，小巧实用。
 
 Bone.Events
 
 Bone.Class
+
+Bone.View
 
 Bone.Router
 
@@ -18,7 +20,8 @@ Bone.History
 var obj = Bone.extend({}, Bone.Events, {...});
 
 2.创建类
-var Page = Bone.Class.extend({...});
+var cls = Bone.Class.extend({...});  
+var view = Bone.View.extend({...});  
 
 
 
