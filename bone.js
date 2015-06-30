@@ -31,6 +31,8 @@
 
     Bone.VERSION = '0.2.0';
 
+    Bone.$ = $;
+
     Bone.noConflict = function() {
         root.Bone = previousBone;
         return this;
@@ -625,7 +627,7 @@
             this.handlers.unshift({route: route, callback: callback});
         },
 
-        checkUrl: function(e) {console.log(this);
+        checkUrl: function(e) {
             var current = this.getFragment();
             if (current === this.fragment) return false;
             this.loadUrl();
@@ -713,7 +715,7 @@
         return child;
     };
 
-    Router.extend = History.extend = Class.extend = extend2;
+    Router.extend = History.extend = Class.extend = View.extend = extend2;
 
 
 
