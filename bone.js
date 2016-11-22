@@ -1,42 +1,29 @@
 /*!
- * VERSION: 0.2.0
- * DATE: 2015-03-31
- * GIT:https://github.com/shrekshrek/bone
- *
- * @author: Shrek.wang, shrekshrek@gmail.com
+ * VERSION: 0.3.0
+ * DATE: 2016-11-22
+ * GIT: https://github.com/shrekshrek/bone
+ * @author: Shrek.wang
  **/
 
 
 (function(factory) {
 
-    var root = (typeof self == 'object' && self.self == self && self) ||
-        (typeof global == 'object' && global.global == global && global);
-
     if (typeof define === 'function' && define.amd) {
         define(['jquery', 'exports'], function($, exports) {
-            root.Bone = factory(root, exports, $);
+            window.Bone = factory(exports, $);
         });
     } else if (typeof exports !== 'undefined') {
         var $ = require('jquery');
-        factory(root, exports, $);
+        factory(exports, $);
     } else {
-        root.Bone = factory(root, {}, (root.jQuery || root.Zepto || root.ender || root.$));
+        window.Bone = factory({}, window.$);
     }
 
-}(function(root, Bone, $) {
-
-    var previousBone = root.Bone;
+}(function(Bone, $) {
 
     var slice = [].slice;
 
-    Bone.VERSION = '0.2.0';
-
     Bone.$ = $;
-
-    Bone.noConflict = function() {
-        root.Bone = previousBone;
-        return this;
-    };
 
     // other function
     // ---------------

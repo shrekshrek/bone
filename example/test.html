@@ -29,8 +29,6 @@
             console.log('cls2 lalal');
         });
 
-        cls1.trigger('aaa');
-        cls1.trigger('aaa');
 
         var Workspace = Bone.Router.extend({
 
@@ -57,7 +55,7 @@
                 this.trigger('ddd');
             }
         });
-        var p1 = new Page();
+        var p1 = new Page();console.log('p1.fun1',p1.fun1);
         var p2 = new Page();
 
         p1.listenToOnce(p2,'ddd',fun1);
@@ -68,8 +66,16 @@
         function fun2(){
             console.log('fun2222222');
         }
+        p1.listenToOnce(p2,'ddd',fun3);
+        function fun3(data){
+            console.log('fun3333333',data);
+        }
 
-        p2.trigger('ddd',{data:'data'});
+        p2.trigger('ddd','data1');
+        p2.trigger('ddd','data2');
+
+        cls1.trigger('aaa');
+        cls1.trigger('aaa');
 
         Bone.history.start();
 
