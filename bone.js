@@ -45,23 +45,7 @@
     };
 
     Bone.bind = bind;
-
-    var extend = function(obj){
-        var length = arguments.length;
-        if (length < 2 || obj == null) return obj;
-        for (var index = 1; index < length; index++) {
-            var source = arguments[index],
-                ks = keys(source),
-                l = ks.length;
-            for (var i = 0; i < l; i++) {
-                var key = ks[i];
-                obj[key] = source[key];
-            }
-        }
-        return obj;
-    };
-
-    Bone.extend = extend;
+    Bone.extend = Object.assign;
 
     var keys = function(obj){
         var keys = [];
@@ -294,7 +278,7 @@
         }
     };
 
-    extend(Bone, Events);
+    Bone.extend(Bone, Events);
 
 
     // Bone.Class
@@ -304,7 +288,7 @@
         this.initialize.apply(this, arguments);
     };
 
-    extend(Class.prototype, Events, {
+    Bone.extend(Class.prototype, Events, {
         initialize: function(){}
     });
 
@@ -326,7 +310,7 @@
 
     var viewOptions = ['el', 'id', 'attributes', 'className', 'tagName', 'events'];
 
-    extend(View.prototype, Events, {
+    Bone.extend(View.prototype, Events, {
         tagName: 'div',
 
         $: function(selector) {
@@ -396,7 +380,7 @@
 
         _ensureElement: function() {
             if (!this.el) {
-                var attrs = extend({}, result(this, 'attributes'));
+                var attrs = Bone.extend({}, result(this, 'attributes'));
                 if (this.id) attrs.id = result(this, 'id');
                 if (this.className) attrs['class'] = result(this, 'className');
                 this.setElement(this._createElement(result(this, 'tagName')));
@@ -427,7 +411,7 @@
     var splatParam    = /\*\w+/g;
     var escapeRegExp  = /[\-{}\[\]+?.,\\\^$|#\s]/g;
 
-    extend(Router.prototype, Events, {
+    Bone.extend(Router.prototype, Events, {
 
         initialize: function(){},
 
@@ -512,7 +496,7 @@
 
     History.started = false;
 
-    extend(History.prototype, Events, {
+    Bone.extend(History.prototype, Events, {
         atRoot: function() {
             var path = this.location.pathname.replace(/[^\/]$/, '$&/');
             return path === this.root && !this.getSearch();
@@ -560,7 +544,7 @@
             if (History.started) throw new Error("Bone.history has already been started");
             History.started = true;
 
-            this.options          = extend({root: '/'}, this.options, options);
+            this.options          = Bone.extend({root: '/'}, this.options, options);
             this.root             = this.options.root;
             this._wantsHashChange = this.options.hashChange !== false;
             this._hasHashChange   = 'onhashchange' in window;
@@ -677,7 +661,7 @@
     // extend
     // ----------------
 
-    var extend2 = function(protoProps, staticProps) {
+    var extend = function(protoProps, staticProps) {
         var parent = this;
         var child;
 
@@ -687,7 +671,7 @@
             child = function(){ return parent.apply(this, arguments); };
         }
 
-        extend(child, parent, staticProps);
+        Object.assign(child, parent, staticProps);
 
         var Surrogate = function(){
             this.constructor = child;
@@ -695,14 +679,14 @@
         Surrogate.prototype = parent.prototype;
         child.prototype = new Surrogate;
 
-        if (protoProps) extend(child.prototype, protoProps);
+        if (protoProps) Object.assign(child.prototype, protoProps);
 
         child.__super__ = parent.prototype;
 
         return child;
     };
 
-    Router.extend = History.extend = Class.extend = View.extend = extend2;
+    Router.extend = History.extend = Class.extend = View.extend = extend;
 
 
 
