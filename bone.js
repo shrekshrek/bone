@@ -23,7 +23,7 @@
     // ---------------
 
     var isFunction = function (obj) {
-        return typeof obj == 'function' || false;
+        return typeof obj === 'function';
     };
 
     var result = function (object, property, fallback) {
