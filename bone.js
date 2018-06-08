@@ -1,38 +1,32 @@
 /*!
- * VERSION: 0.3.0
- * DATE: 2016-11-22
  * GIT: https://github.com/shrekshrek/bone
- * @author: Shrek.wang
  **/
 
 
-(function(factory) {
-
-    if (typeof define === 'function' && define.amd) {
-        define(['jquery', 'exports'], function($, exports) {
-            window.Bone = factory(exports, $);
-        });
-    } else if (typeof exports !== 'undefined') {
+(function (global, factory) {
+    if (typeof exports === 'object' && typeof module !== 'undefined') {
         var $ = require('jquery');
-        factory(exports, $);
+        module.exports = factory($);
+    } else if (typeof define === 'function' && define.amd) {
+        define(['jquery'], factory);
     } else {
-        window.Bone = factory({}, window.$);
+        global.Bone = factory(global.$);
     }
+}(this, (function ($) {
+    'use strict';
 
-}(function(Bone, $) {
+    var Bone = {$: $};
 
     var slice = [].slice;
-
-    Bone.$ = $;
 
     // other function
     // ---------------
 
-    var isFunction = function(obj) {
+    var isFunction = function (obj) {
         return typeof obj == 'function' || false;
     };
 
-    var result = function(object, property, fallback) {
+    var result = function (object, property, fallback) {
         var value = object == null ? void 0 : object[property];
         if (value === void 0) {
             value = fallback;
@@ -40,34 +34,34 @@
         return isFunction(value) ? value.call(object) : value;
     };
 
-    var bind = function(func, context) {
+    var bind = function (func, context) {
         return Function.prototype.bind.apply(func, slice.call(arguments, 1));
     };
 
     Bone.bind = bind;
     Bone.extend = Object.assign;
 
-    var keys = function(obj){
+    var keys = function (obj) {
         var keys = [];
-        for(var key in obj){
+        for (var key in obj) {
             keys.push(key);
         }
         return keys;
     };
 
-    var size = function(obj) {
+    var size = function (obj) {
         if (obj == null) return 0;
         return (obj.length !== undefined) ? obj.length : keys(obj).length;
     };
 
-    var isEmpty = function(obj) {
+    var isEmpty = function (obj) {
         if (obj == null) return true;
         if (obj.length !== undefined) return obj.length === 0;
         return keys(obj).length === 0;
     };
 
     var idCounter = 0;
-    var uniqueId = function(prefix) {
+    var uniqueId = function (prefix) {
         var id = ++idCounter + '';
         return prefix ? prefix + id : id;
     };
@@ -85,11 +79,11 @@
 
     var eventSplitter = /\s+/;
 
-    var eventsApi = function(iteratee, memo, name, callback, opts) {
+    var eventsApi = function (iteratee, memo, name, callback, opts) {
         var i = 0, names;
         if (name && typeof name === 'object') {
             if (callback !== void 0 && 'context' in opts && opts.context === void 0) opts.context = callback;
-            for (names = keys(name); i < names.length ; i++) {
+            for (names = keys(name); i < names.length; i++) {
                 memo = iteratee(memo, names[i], name[names[i]], opts);
             }
         } else if (name && eventSplitter.test(name)) {
@@ -102,11 +96,11 @@
         return memo;
     };
 
-    Events.on = function(name, callback, context) {
+    Events.on = function (name, callback, context) {
         return internalOn(this, name, callback, context);
     };
 
-    var internalOn = function(obj, name, callback, context, listening) {
+    var internalOn = function (obj, name, callback, context, listening) {
         obj._events = eventsApi(onApi, obj._events || {}, name, callback, {
             context: context,
             ctx: obj,
@@ -121,7 +115,7 @@
         return obj;
     };
 
-    Events.listenTo =  function(obj, name, callback) {
+    Events.listenTo = function (obj, name, callback) {
         if (!obj) return this;
         var id = obj._listenId || (obj._listenId = uniqueId('l'));
         var listeningTo = this._listeningTo || (this._listeningTo = {});
@@ -136,18 +130,18 @@
         return this;
     };
 
-    var onApi = function(events, name, callback, options) {
+    var onApi = function (events, name, callback, options) {
         if (callback) {
             var handlers = events[name] || (events[name] = []);
             var context = options.context, ctx = options.ctx, listening = options.listening;
             if (listening) listening.count++;
 
-            handlers.push({ callback: callback, context: context, ctx: context || ctx, listening: listening });
+            handlers.push({callback: callback, context: context, ctx: context || ctx, listening: listening});
         }
         return events;
     };
 
-    Events.off =  function(name, callback, context) {
+    Events.off = function (name, callback, context) {
         if (!this._events) return this;
         this._events = eventsApi(offApi, this._events, name, callback, {
             context: context,
@@ -156,7 +150,7 @@
         return this;
     };
 
-    Events.stopListening =  function(obj, name, callback) {
+    Events.stopListening = function (obj, name, callback) {
         var listeningTo = this._listeningTo;
         if (!listeningTo) return this;
 
@@ -174,7 +168,7 @@
         return this;
     };
 
-    var offApi = function(events, name, callback, options) {
+    var offApi = function (events, name, callback, options) {
         if (!events) return;
 
         var i = 0, listening;
@@ -224,19 +218,19 @@
         if (size(events)) return events;
     };
 
-    Events.once =  function(name, callback, context) {
+    Events.once = function (name, callback, context) {
         var events = eventsApi(onceMap, {}, name, callback, bind(this.off, this));
         return this.on(events, void 0, context);
     };
 
-    Events.listenToOnce =  function(obj, name, callback) {
+    Events.listenToOnce = function (obj, name, callback) {
         var events = eventsApi(onceMap, {}, name, callback, bind(this.stopListening, this, obj));
         return this.listenTo(obj, events);
     };
 
-    var onceMap = function(map, name, callback, offer) {
+    var onceMap = function (map, name, callback, offer) {
         if (callback) {
-            var once = map[name] = function() {
+            var once = map[name] = function () {
                 offer(name, once);
                 callback.apply(this, arguments);
             };
@@ -245,7 +239,7 @@
         return map;
     };
 
-    Events.trigger =  function(name) {
+    Events.trigger = function (name) {
         if (!this._events) return this;
 
         var length = Math.max(0, arguments.length - 1);
@@ -256,7 +250,7 @@
         return this;
     };
 
-    var triggerApi = function(objEvents, name, cb, args) {
+    var triggerApi = function (objEvents, name, cb, args) {
         if (objEvents) {
             var events = objEvents[name];
             var allEvents = objEvents.all;
@@ -267,14 +261,24 @@
         return objEvents;
     };
 
-    var triggerEvents = function(events, args) {
+    var triggerEvents = function (events, args) {
         var ev, i = -1, l = events.length, a1 = args[0], a2 = args[1], a3 = args[2];
         switch (args.length) {
-            case 0: while (++i < l) (ev = events[i]).callback.call(ev.ctx); return;
-            case 1: while (++i < l) (ev = events[i]).callback.call(ev.ctx, a1); return;
-            case 2: while (++i < l) (ev = events[i]).callback.call(ev.ctx, a1, a2); return;
-            case 3: while (++i < l) (ev = events[i]).callback.call(ev.ctx, a1, a2, a3); return;
-            default: while (++i < l) (ev = events[i]).callback.apply(ev.ctx, args); return;
+            case 0:
+                while (++i < l) (ev = events[i]).callback.call(ev.ctx);
+                return;
+            case 1:
+                while (++i < l) (ev = events[i]).callback.call(ev.ctx, a1);
+                return;
+            case 2:
+                while (++i < l) (ev = events[i]).callback.call(ev.ctx, a1, a2);
+                return;
+            case 3:
+                while (++i < l) (ev = events[i]).callback.call(ev.ctx, a1, a2, a3);
+                return;
+            default:
+                while (++i < l) (ev = events[i]).callback.apply(ev.ctx, args);
+                return;
         }
     };
 
@@ -284,23 +288,24 @@
     // Bone.Class
     // ---------------
 
-    var Class = Bone.Class = function(options) {
+    var Class = Bone.Class = function (options) {
         this.initialize.apply(this, arguments);
     };
 
     Bone.extend(Class.prototype, Events, {
-        initialize: function(){}
+        initialize: function () {
+        }
     });
 
 
     // Bone.View
     // ---------------
 
-    var View = Bone.View = function(options) {
+    var View = Bone.View = function (options) {
         this.cid = uniqueId('view');
         options || (options = {});
-        for(var i in viewOptions){
-            if(options[viewOptions[i]]) this[viewOptions[i]] = options[viewOptions[i]];
+        for (var i in viewOptions) {
+            if (options[viewOptions[i]]) this[viewOptions[i]] = options[viewOptions[i]];
         }
         this._ensureElement();
         this.initialize.apply(this, arguments);
@@ -313,39 +318,40 @@
     Bone.extend(View.prototype, Events, {
         tagName: 'div',
 
-        $: function(selector) {
+        $: function (selector) {
             return this.$el.find(selector);
         },
 
-        initialize: function(){},
+        initialize: function () {
+        },
 
-        render: function() {
+        render: function () {
             return this;
         },
 
-        remove: function() {
+        remove: function () {
             this._removeElement();
             this.stopListening();
             return this;
         },
 
-        _removeElement: function() {
+        _removeElement: function () {
             this.$el.remove();
         },
 
-        setElement: function(element) {
+        setElement: function (element) {
             this.undelegateEvents();
             this._setElement(element);
             this.delegateEvents();
             return this;
         },
 
-        _setElement: function(el) {
+        _setElement: function (el) {
             this.$el = el instanceof Bone.$ ? el : Bone.$(el);
             this.el = this.$el[0];
         },
 
-        delegateEvents: function(events) {
+        delegateEvents: function (events) {
             events || (events = result(this, 'events'));
             if (!events) return this;
             this.undelegateEvents();
@@ -359,26 +365,26 @@
             return this;
         },
 
-        delegate: function(eventName, selector, listener) {
+        delegate: function (eventName, selector, listener) {
             this.$el.on(eventName + '.delegateEvents' + this.cid, selector, listener);
             return this;
         },
 
-        undelegateEvents: function() {
+        undelegateEvents: function () {
             if (this.$el) this.$el.off('.delegateEvents' + this.cid);
             return this;
         },
 
-        undelegate: function(eventName, selector, listener) {
+        undelegate: function (eventName, selector, listener) {
             this.$el.off(eventName + '.delegateEvents' + this.cid, selector, listener);
             return this;
         },
 
-        _createElement: function(tagName) {
+        _createElement: function (tagName) {
             return document.createElement(tagName);
         },
 
-        _ensureElement: function() {
+        _ensureElement: function () {
             if (!this.el) {
                 var attrs = Bone.extend({}, result(this, 'attributes'));
                 if (this.id) attrs.id = result(this, 'id');
@@ -390,7 +396,7 @@
             }
         },
 
-        _setAttributes: function(attributes) {
+        _setAttributes: function (attributes) {
             this.$el.attr(attributes);
         }
 
@@ -399,7 +405,7 @@
     // Bone.Router
     // ---------------
 
-    var Router = Bone.Router = function(options) {
+    var Router = Bone.Router = function (options) {
         options || (options = {});
         if (options.routes) this.routes = options.routes;
         this._bindRoutes();
@@ -407,15 +413,16 @@
     };
 
     var optionalParam = /\((.*?)\)/g;
-    var namedParam    = /(\(\?)?:\w+/g;
-    var splatParam    = /\*\w+/g;
-    var escapeRegExp  = /[\-{}\[\]+?.,\\\^$|#\s]/g;
+    var namedParam = /(\(\?)?:\w+/g;
+    var splatParam = /\*\w+/g;
+    var escapeRegExp = /[\-{}\[\]+?.,\\\^$|#\s]/g;
 
     Bone.extend(Router.prototype, Events, {
 
-        initialize: function(){},
+        initialize: function () {
+        },
 
-        route: function(route, name, callback) {
+        route: function (route, name, callback) {
             route = this._routeToRegExp(route);
             if (isFunction(name)) {
                 callback = name;
@@ -423,7 +430,7 @@
             }
             if (!callback) callback = this[name];
             var router = this;
-            Bone.history.route(route, function(fragment) {
+            Bone.history.route(route, function (fragment) {
                 var args = router._extractParameters(route, fragment);
                 if (router.execute(callback, args, name) !== false) {
                     router.trigger.apply(router, ['route:' + name].concat(args));
@@ -434,16 +441,16 @@
             return this;
         },
 
-        execute: function(callback, args, name) {
+        execute: function (callback, args, name) {
             if (callback) callback.apply(this, args);
         },
 
-        navigate: function(fragment, options) {
+        navigate: function (fragment, options) {
             Bone.history.navigate(fragment, options);
             return this;
         },
 
-        _bindRoutes: function() {
+        _bindRoutes: function () {
             if (!this.routes) return;
             var route, routes = keys(this.routes);
             while ((route = routes.pop()) != null) {
@@ -451,20 +458,20 @@
             }
         },
 
-        _routeToRegExp: function(route) {
+        _routeToRegExp: function (route) {
             route = route.replace(escapeRegExp, '\\$&')
                 .replace(optionalParam, '(?:$1)?')
-                .replace(namedParam, function(match, optional) {
+                .replace(namedParam, function (match, optional) {
                     return optional ? match : '([^/?]+)';
                 })
                 .replace(splatParam, '([^?]*?)');
             return new RegExp('^' + route + '(?:\\?([\\s\\S]*))?$');
         },
 
-        _extractParameters: function(route, fragment) {
+        _extractParameters: function (route, fragment) {
             var params = route.exec(fragment).slice(1);
             var _p = [];
-            for(var i in params){
+            for (var i in params) {
                 var param = params[i];
                 if (i === params.length - 1) _p[i] = param || null;
                 else _p[i] = param ? decodeURIComponent(param) : null;
@@ -478,7 +485,7 @@
     // Bone.History
     // ----------------
 
-    var History = Bone.History = function() {
+    var History = Bone.History = function () {
         this.handlers = [];
         this.checkUrl = bind(this.checkUrl, this);
 
@@ -497,39 +504,39 @@
     History.started = false;
 
     Bone.extend(History.prototype, Events, {
-        atRoot: function() {
+        atRoot: function () {
             var path = this.location.pathname.replace(/[^\/]$/, '$&/');
             return path === this.root && !this.getSearch();
         },
 
-        matchRoot: function() {
+        matchRoot: function () {
             var path = this.decodeFragment(this.location.pathname);
             var root = path.slice(0, this.root.length - 1) + '/';
             return root === this.root;
         },
 
-        decodeFragment: function(fragment) {
+        decodeFragment: function (fragment) {
             return decodeURI(fragment.replace(/%25/g, '%2525'));
         },
 
-        getSearch: function() {
+        getSearch: function () {
             var match = this.location.href.replace(/#.*/, '').match(/\?.+/);
             return match ? match[0] : '';
         },
 
-        getHash: function(window) {
+        getHash: function (window) {
             var match = (window || this).location.href.match(/#(.*)$/);
             return match ? match[1] : '';
         },
 
-        getPath: function() {
+        getPath: function () {
             var path = this.decodeFragment(
                 this.location.pathname + this.getSearch()
             ).slice(this.root.length - 1);
             return path.charAt(0) === '/' ? path.slice(1) : path;
         },
 
-        getFragment: function(fragment) {
+        getFragment: function (fragment) {
             if (fragment == null) {
                 if (this._usePushState || !this._wantsHashChange) {
                     fragment = this.getPath();
@@ -540,19 +547,19 @@
             return fragment.replace(routeStripper, '');
         },
 
-        start: function(options) {
+        start: function (options) {
             if (History.started) throw new Error("Bone.history has already been started");
             History.started = true;
 
-            this.options          = Bone.extend({root: '/'}, this.options, options);
-            this.root             = this.options.root;
+            this.options = Bone.extend({root: '/'}, this.options, options);
+            this.root = this.options.root;
             this._wantsHashChange = this.options.hashChange !== false;
-            this._hasHashChange   = 'onhashchange' in window;
-            this._useHashChange   = this._wantsHashChange && this._hasHashChange;
-            this._wantsPushState  = !!this.options.pushState;
-            this._hasPushState    = !!(this.history && this.history.pushState);
-            this._usePushState    = this._wantsPushState && this._hasPushState;
-            this.fragment         = this.getFragment();
+            this._hasHashChange = 'onhashchange' in window;
+            this._useHashChange = this._wantsHashChange && this._hasHashChange;
+            this._wantsPushState = !!this.options.pushState;
+            this._hasPushState = !!(this.history && this.history.pushState);
+            this._usePushState = this._wantsPushState && this._hasPushState;
+            this.fragment = this.getFragment();
 
             this.root = ('/' + this.root + '/').replace(rootStripper, '/');
 
@@ -567,8 +574,8 @@
             }
 
             var addEventListener = window.addEventListener || function (eventName, listener) {
-                    return attachEvent('on' + eventName, listener);
-                };
+                return attachEvent('on' + eventName, listener);
+            };
 
             if (this._usePushState) {
                 addEventListener('popstate', this.checkUrl, false);
@@ -579,10 +586,10 @@
             if (!this.options.silent) return this.loadUrl();
         },
 
-        stop: function() {
+        stop: function () {
             var removeEventListener = window.removeEventListener || function (eventName, listener) {
-                    return detachEvent('on' + eventName, listener);
-                };
+                return detachEvent('on' + eventName, listener);
+            };
 
             if (this._usePushState) {
                 removeEventListener('popstate', this.checkUrl, false);
@@ -594,20 +601,20 @@
             History.started = false;
         },
 
-        route: function(route, callback) {
+        route: function (route, callback) {
             this.handlers.unshift({route: route, callback: callback});
         },
 
-        checkUrl: function(e) {
+        checkUrl: function (e) {
             var current = this.getFragment();
             if (current === this.fragment) return false;
             this.loadUrl();
         },
 
-        loadUrl: function(fragment) {
+        loadUrl: function (fragment) {
             if (!this.matchRoot()) return false;
             fragment = this.fragment = this.getFragment(fragment);
-            for(var i in this.handlers){
+            for (var i in this.handlers) {
                 var handler = this.handlers[i];
                 if (handler.route.test(fragment)) {
                     handler.callback(fragment);
@@ -616,7 +623,7 @@
             }
         },
 
-        navigate: function(fragment, options) {
+        navigate: function (fragment, options) {
             if (!History.started) return false;
             if (!options || options === true) options = {trigger: !!options};
 
@@ -644,7 +651,7 @@
             if (options.trigger) return this.loadUrl(fragment);
         },
 
-        _updateHash: function(location, fragment, replace) {
+        _updateHash: function (location, fragment, replace) {
             if (replace) {
                 var href = location.href.replace(/(javascript:|#).*$/, '');
                 location.replace(href + '#' + fragment);
@@ -661,19 +668,21 @@
     // extend
     // ----------------
 
-    var extend = function(protoProps, staticProps) {
+    var extend = function (protoProps, staticProps) {
         var parent = this;
         var child;
 
         if (protoProps && Object.prototype.hasOwnProperty.call(protoProps, 'constructor')) {
             child = protoProps.constructor;
         } else {
-            child = function(){ return parent.apply(this, arguments); };
+            child = function () {
+                return parent.apply(this, arguments);
+            };
         }
 
         Object.assign(child, parent, staticProps);
 
-        var Surrogate = function(){
+        var Surrogate = function () {
             this.constructor = child;
         };
         Surrogate.prototype = parent.prototype;
@@ -689,7 +698,6 @@
     Router.extend = History.extend = Class.extend = View.extend = extend;
 
 
-
     return Bone;
 
-}));
+})));
